@@ -1,4 +1,4 @@
-#/* 
+/* 
  * udpclient.c - A simple UDP client
  * usage: udpclient <host> <port>
  */
@@ -31,10 +31,6 @@ int main(int argc, char **argv) {
     char buf[BUFSIZE];
 
     /* check command line arguments */
-    if (argc != 3) {
-       fprintf(stderr,"usage: %s <hostname> <port>\n", argv[0]);
-       exit(0);
-    }
     hostname = argv[1];
 
     /* socket: create the socket */
@@ -48,25 +44,25 @@ int main(int argc, char **argv) {
         fprintf(stderr,"ERROR, no such host as %s\n", hostname);
         exit(0);
     }
-
+	printf("cek47");
     /* build the server's Internet address */
     bzero((char *) &serveraddr, sizeof(serveraddr));
     serveraddr.sin_family = AF_INET;
     bcopy((char *)server->h_addr, 
 	  (char *)&serveraddr.sin_addr.s_addr, server->h_length);
     serveraddr.sin_port = htons(PORT);
-
+	printf("cek54");
     /* get a message from the user */
     bzero(buf, BUFSIZE);
     printf("Please enter msg: ");
     fgets(buf, BUFSIZE, stdin);
-
+	printf("cek59");
     /* send the message to the server */
     serverlen = sizeof(serveraddr);
     n = sendto(sockfd, buf, strlen(buf), 0, &serveraddr, serverlen);
     if (n < 0) 
       error("ERROR in sendto");
-    
+    printf(buf);
     /* print the server's reply */
     n = recvfrom(sockfd, buf, strlen(buf), 0, &serveraddr, &serverlen);
     if (n < 0) 

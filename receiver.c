@@ -17,14 +17,14 @@ int main()
 	int data_len;
 	char data[1024];
 
-	if ((sock = socket(AF_INET, SOCK_STREAM, 0)) == -1)
+	if ((sock = socket(AF_INET, SOCK_DGRAM, 0)) == -1)
 	{
 		perror("socket: ");
 		exit(-1);
 	}
 
 	server.sin_family = AF_INET;
-	server.sin_port = htons(4949);
+	server.sin_port = htons(10000);
 	server.sin_addr.s_addr = INADDR_ANY;
 	bzero(&server.sin_zero, 8);
 	
@@ -36,6 +36,7 @@ int main()
 		exit(-1);
 	}
 
+	recvfrom(s, , sizeof(buf), 0, (struct sockaddr*) &si_other, &slen);
 	if ((listen(sock, 5)) == -1)
 	{
 		perror("listen");
@@ -44,6 +45,8 @@ int main()
 
 	while (1)
 	{
+		
+		d
 		if((cli = accept(sock, (struct sockaddr *)&client, &len)) ==-1)
 		{
 			perror("accept");
@@ -54,25 +57,27 @@ int main()
 		data_len = 1;
 		while(data_len) {
 			data_len = recv(cli, data, 1024,0);
+			data_len = 
 			if (data_len) {
 				send(cli, data, data_len-1,0);
 				data[data_len] = '\0';
 				printf(data);
 			}
 				printf(data_len);
-			}
+		
 			if (!strcmp(data,mesg)) {
 				printf("My name is rudi \n");
 			}
 			
 		}
+	}
 		
 
 		printf("send %d bytes to client : %s\n", sent, inet_ntoa(client.sin_addr));
 		
 
 
-	}
+	
 	close(cli);
 	return 0;
 }

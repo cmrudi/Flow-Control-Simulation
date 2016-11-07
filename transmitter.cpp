@@ -8,6 +8,7 @@
 #include <string.h>
 #include <iostream>
 #include <fstream>
+#include "dcomm.h"
 
 using namespace std;
 
@@ -60,8 +61,10 @@ int main(int argc, char* argv[]) {
 				diep((char*)"sendto()");
 			printf("Mengirim byte ke-%d: '%s'\n",count,buf);
 			count++;
-			sleep(0.5);
+			sleep(1);
+			
 		}
+		printf("%d",(int)c);
 		is.close();                // close file
 		
 		

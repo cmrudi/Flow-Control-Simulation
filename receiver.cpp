@@ -22,6 +22,8 @@ pthread_mutex_t myLock;
 void* mainThr(void* tArg);
 static Byte *q_get(queue<Byte> Q, Byte *data);
 static Byte *rcvchar(int sockfd, queue<Byte> Q);
+int isChar(char c);
+
 
 void die(char *s)
 {
@@ -51,7 +53,6 @@ int main(int argc, char* args[])
 	}
 
 	sourcePort = atoi(args[1]);
-	printf("%d\n",sourcePort);
 	//create a UDP socket
 	if ((s=socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP)) == -1)
 	{
@@ -104,7 +105,7 @@ int main(int argc, char* args[])
 		}
 		*/
 
-		sleep(1);
+		
 
 	}
 	
@@ -118,21 +119,23 @@ int main(int argc, char* args[])
 }
 
 void* mainThr(void* tArg) {
-	pthread_mutex_lock(&myLock); //lock the thread process
+	//pthread_mutex_lock(&myLock); //lock the thread process
 
-	while (1 && isBinded) {
+	while (1) {
 		
 		Byte* temp = q_get(dataBuffer,&currentData); 
-		if (currentData == Endfile) {
-			exit(0);
+		if(isChar(currentData) ){
+			if (currentData == Endfile) {
+				exit(0);
+			}
+			else {
+				printf("Mengkonsumsi byte ke-%d: '%c'\n",consumedCounter,currentData);
+				consumedCounter++;
+			}
+			sleep(2);
 		}
-		else {
-			printf("Mengkonsumsi byte ke-%d: '%c'\n",consumedCounter,currentData);
-			consumedCounter++;
-		}
-		sleep(1);
 	}
-	pthread_mutex_unlock(&myLock); //release the thread lock
+	//pthread_mutex_unlock(&myLock); //release the thread lock
 
 	return NULL;
 }
@@ -144,19 +147,19 @@ static Byte *rcvchar(int sockfd, queue<Byte> Q) {
 		{
 			die((char*)"recvfrom()");
 		}
-		if (recv_len != -1 && !isBinded) {
+		if (recv_len != 0 && !isBinded) {
 			printf("Binding pada %s:%d ...\n", inet_ntoa(si_other.sin_addr), ntohs(si_other.sin_port));
 			isBinded = true;
 		}
 
 		if (recv_len!=0) {
 			printf("Menerima byte ke-%d\n" , dataCounter);
-			dataBuffer.push(buf[0]);
+			Q.push(buf[0]);
 			dataCounter++;		
 		}
 
-		if (dataBuffer.size()> MINUPPERBUF) {
-			printf("Buffer > minimum upperlimit. Mengirim XOFF.\n");
+		if (Q.size()> MINUPPERBUF) {
+			printf("Buffer > minimum upperlimit.\nMengirim XOFF.\n");
 			xChar = XOFF;
 			send_xonxoff[0] = xChar;
 			ssize_t sent_len = sendto(s, send_xonxoff, sizeof(send_xonxoff), 4, (struct sockaddr*) &si_other, slen);
@@ -182,12 +185,12 @@ static Byte *q_get(queue<Byte> Q, Byte *data) {
 			temp = Q.front();
 			Q.pop();
 			data[consumedCounter] = temp;
-			consumedCounter++;
+			//consumedCounter++;
 		}
 		
 	}
-	if (dataBuffer.size()< MAXLOWERBUF) {
-		printf("Buffer < maximum lowerlimit. Mengirim XON.\n");
+	if (Q.size()< MAXLOWERBUF) {
+		printf("Buffer < maximum lowerlimit. \nMengirim XON.\n");
 		xChar = XON;
 		send_xonxoff[0] = xChar;
 		ssize_t sent_len = sendto(s, send_xonxoff, sizeof(send_xonxoff), 4, (struct sockaddr*) &si_other, slen);
@@ -199,3 +202,6 @@ static Byte *q_get(queue<Byte> Q, Byte *data) {
 	return data;
 }
 
+int isChar(char c){
+  return (c >= 32 || c == CR || c == Endfile || c == LF);
+}

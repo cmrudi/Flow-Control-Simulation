@@ -54,7 +54,22 @@ int main(int argc, char* argv[]) {
 		ifstream is(FILE_NAME);     // open file
 		int count = 1;
 		char c;
+		int recvlen;
+		char *message;
+		int state = 0; //0 == XON, 1 == XOFF
 		while (is.get(c)) {          // loop getting single characters
+			if (recvfrom(s, message, 2, MSG_DONTWAIT, (struct sockaddr *) &si_other, (socklen_t*)&slen) == 1) {
+				state = 1;
+				printf("XOFF diterima\n");
+				while (state) {
+					sleep(1);
+					printf("Menunggu XON\n");
+					if (recvfrom(s, message, 2, MSG_DONTWAIT, (struct sockaddr *) &si_other, (socklen_t*)&slen) == 1) {
+						state = 0;
+						printf("XON diterima\n");
+					}
+				}
+			}
 			
 			sprintf(buf, "%c", c);
 			if (sendto(s, buf, BUFLEN, 0, (struct sockaddr*) &si_other, slen)==-1)

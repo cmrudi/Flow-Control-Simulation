@@ -17,13 +17,12 @@
 #define ESC 27		/* ESC key */
 
 /* XON/XOFF protocol */
-#define XON (0x11)
-#define XOFF (0x13)
+#define XON 0x11
+#define XOFF 0x13
 /* Const */
 #define BYTESIZE 256	/* The maximum value of a byte */
 #define MAXLEN 1024		/* Maximum messages length */
 
-typedef enum { false=0, true } Boolean;
 
 typedef unsigned char Byte;
 

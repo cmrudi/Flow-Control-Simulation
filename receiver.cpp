@@ -50,7 +50,7 @@ int main(int argc, char* args[])
 	}
 
 	sourcePort = atoi(args[1]);
-
+	printf("%d\n",sourcePort);
 	//create a UDP socket
 	if ((s=socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP)) == -1)
 	{

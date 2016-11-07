@@ -15,6 +15,7 @@
 
 using namespace std;
 
+
 pthread_t threadId;
 pthread_mutex_t myLock;
 
@@ -34,19 +35,19 @@ Byte buf[BUFLEN];
 queue<Byte> dataBuffer;
 int dataCounter = 1;
 int consumedCounter = 1;
-char xChar;
+char xChar = XON;
 Byte sent_xonxoff = XON;
 bool send_xon = false;
 bool send_xoff = false;
 char send_xonxoff[1];
 int sourcePort;
 Byte currentData;
-	
+bool isBinded = false;
 
 int main(int argc, char* args[])
 {
 	if (argc!= 2) {
-		die((char*)"parameter harus 1");
+		die((char*)"please input: ./receiver <PORT>\n");
 	}
 
 	sourcePort = atoi(args[1]);
@@ -70,20 +71,20 @@ int main(int argc, char* args[])
 		
 	}
 	else {
-		printf("Binding pada %s:%d ...\n", inet_ntoa(si_other.sin_addr), ntohs(si_other.sin_port));
+		//printf("Binding pada %s:%d ...\n", inet_ntoa(si_other.sin_addr), ntohs(si_other.sin_port));
 	}
 	
 	//initialize mutex
 	if (pthread_mutex_init(&myLock, NULL) != 0) {
 	    die((char*)"mutex init failed\n");
 	}
-	//create main thread
+	//create main thread/*
+	
 	if(pthread_create(&threadId, NULL, mainThr, NULL)) {
 		die((char*)"Error creating thread\n");
-
 	}
-
-
+	
+	
 	//keep listening for data
 	while(1)
 	{
@@ -103,7 +104,8 @@ int main(int argc, char* args[])
 		}
 		*/
 
-		//sleep(1);
+		sleep(1);
+
 	}
 	
 	//join the process thread
@@ -118,7 +120,8 @@ int main(int argc, char* args[])
 void* mainThr(void* tArg) {
 	pthread_mutex_lock(&myLock); //lock the thread process
 
-	while (1) {
+	while (1 && isBinded) {
+		
 		Byte* temp = q_get(dataBuffer,&currentData); 
 		if (currentData == Endfile) {
 			exit(0);
@@ -140,6 +143,10 @@ static Byte *rcvchar(int sockfd, queue<Byte> Q) {
 		if ((recv_len = recvfrom(s, buf, BUFLEN, 0, (struct sockaddr *) &si_other, (socklen_t*)&slen)) == -1)
 		{
 			die((char*)"recvfrom()");
+		}
+		if (recv_len != -1 && !isBinded) {
+			printf("Binding pada %s:%d ...\n", inet_ntoa(si_other.sin_addr), ntohs(si_other.sin_port));
+			isBinded = true;
 		}
 
 		if (recv_len!=0) {

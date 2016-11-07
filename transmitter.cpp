@@ -60,7 +60,7 @@ int main(int argc, char* argv[]) {
 				diep((char*)"sendto()");
 			printf("Mengirim byte ke-%d: '%s'\n",count,buf);
 			count++;
-		
+			sleep(0.5);
 		}
 		is.close();                // close file
 		

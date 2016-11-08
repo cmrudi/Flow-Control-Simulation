@@ -7,24 +7,21 @@
 #include <unistd.h>
 #include "dcomm.h"
 #include <queue>
-#include <pthread.h>
+#include <thread>
 
 #define BUFLEN 512	//Max length of buffer
-#define MINUPPERBUF 0
+#define MINUPPERBUF 5
 #define MAXLOWERBUF 2
 
 using namespace std;
 
 
-pthread_t threadId;
-pthread_mutex_t myLock;
 
-void* mainThr(void* tArg);
-static Byte *q_get(queue<Byte> Q, Byte *data);
-static Byte *rcvchar(int sockfd, queue<Byte> Q);
+void consumeByte();
+Byte q_get();
+Byte *rcvchar(int sockfd);
 
-void die(char *s)
-{
+void die(char *s) {
 	perror(s);
 	exit(1);
 }
@@ -44,17 +41,19 @@ int sourcePort;
 Byte currentData;
 bool isBinded = false;
 
-int main(int argc, char* args[])
-{
+int main(int argc, char* args[]) {
+
+	
+
 	if (argc!= 2) {
 		die((char*)"please input: ./receiver <PORT>\n");
 	}
 
 	sourcePort = atoi(args[1]);
 	printf("%d\n",sourcePort);
+
 	//create a UDP socket
-	if ((s=socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP)) == -1)
-	{
+	if ((s=socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP)) == -1) {
 		die((char*)"socket");
 	}
 	
@@ -66,84 +65,62 @@ int main(int argc, char* args[])
 	si_me.sin_addr.s_addr = htonl(INADDR_ANY);
 	
 	//bind socket to port
-	if( bind(s , (struct sockaddr*)&si_me, sizeof(si_me) ) == -1)
-	{
-		
+	if( bind(s , (struct sockaddr*)&si_me, sizeof(si_me) ) == -1) {
+		die((char*)"bind");	
+	} else {
+		isBinded = true;
 	}
-	else {
-		//printf("Binding pada %s:%d ...\n", inet_ntoa(si_other.sin_addr), ntohs(si_other.sin_port));
-	}
-	
-	//initialize mutex
-	if (pthread_mutex_init(&myLock, NULL) != 0) {
-	    die((char*)"mutex init failed\n");
-	}
-	//create main thread/*
-	
-	if(pthread_create(&threadId, NULL, mainThr, NULL)) {
-		die((char*)"Error creating thread\n");
-	}
-	
+
+	thread t1(consumeByte);
 	
 	//keep listening for data
 	while(1)
 	{
-		
-		fflush(stdout);
+
 		//try to receive some data, this is a blocking call
-		currentData = *(rcvchar(s,dataBuffer));
+		currentData = *(rcvchar(s));
 		if (currentData==Endfile) {
 			exit(0);
 		}
 
-		/*
-		//now reply the client with the same data
-		if (sendto(s, buf, recv_len, 0, (struct sockaddr*) &si_other, slen) == -1)
-		{
-			die((char*)"sendto()");
-		}
-		*/
-
 		sleep(1);
 
 	}
+
+	isBinded = false;
 	
-	//join the process thread
-	pthread_join(threadId,NULL);
-	//destroy mutex
-	pthread_mutex_destroy(&myLock);
+	t1.join();
 
 	close(s);
 	return 0;
 }
 
-void* mainThr(void* tArg) {
-	pthread_mutex_lock(&myLock); //lock the thread process
+void consumeByte() {
 
-	while (1 && isBinded) {
+	while (isBinded) {
+
+		if(dataBuffer.size() > 0){
+			Byte temp = q_get();
+
+			if (temp == Endfile) {
+				exit(0);
+			} else {
+				printf("Mengkonsumsi byte ke-%d: '%c'\n",consumedCounter,temp);
+				consumedCounter++;
+			}
+		}
 		
-		Byte* temp = q_get(dataBuffer,&currentData); 
-		if (currentData == Endfile) {
-			exit(0);
-		}
-		else {
-			printf("Mengkonsumsi byte ke-%d: '%c'\n",consumedCounter,currentData);
-			consumedCounter++;
-		}
-		sleep(1);
+		sleep(3);
 	}
-	pthread_mutex_unlock(&myLock); //release the thread lock
-
-	return NULL;
 }
 
 
-static Byte *rcvchar(int sockfd, queue<Byte> Q) {
+Byte *rcvchar(int sockfd) {
 	if (xChar==XON) {
-		if ((recv_len = recvfrom(s, buf, BUFLEN, 0, (struct sockaddr *) &si_other, (socklen_t*)&slen)) == -1)
-		{
+		if ((recv_len = recvfrom(s, buf, BUFLEN, 0, (struct sockaddr *) &si_other, (socklen_t*)&slen)) == -1) {
 			die((char*)"recvfrom()");
 		}
+
 		if (recv_len != -1 && !isBinded) {
 			printf("Binding pada %s:%d ...\n", inet_ntoa(si_other.sin_addr), ntohs(si_other.sin_port));
 			isBinded = true;
@@ -172,21 +149,9 @@ static Byte *rcvchar(int sockfd, queue<Byte> Q) {
 	return &buf[0];
 }
 
-static Byte *q_get(queue<Byte> Q, Byte *data) {
-	if (Q.size()==0) {
-		return NULL;
-	}
-	else {
-		while (Q.size()>0) {
-			Byte temp;
-			temp = Q.front();
-			Q.pop();
-			data[consumedCounter] = temp;
-			consumedCounter++;
-		}
-		
-	}
-	if (dataBuffer.size()< MAXLOWERBUF) {
+Byte q_get() {
+
+	if (dataBuffer.size() < MAXLOWERBUF && xChar == XOFF) {
 		printf("Buffer < maximum lowerlimit. Mengirim XON.\n");
 		xChar = XON;
 		send_xonxoff[0] = xChar;
@@ -196,6 +161,9 @@ static Byte *q_get(queue<Byte> Q, Byte *data) {
   		}	
 	}
 
-	return data;
+	Byte dataChar = dataBuffer.front();
+	dataBuffer.pop();
+
+	return dataChar;
 }
 

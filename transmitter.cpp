@@ -9,6 +9,7 @@
 #include <iostream>
 #include <fstream>
 #include "dcomm.h"
+#include <thread>
 
 using namespace std;
 
@@ -21,7 +22,12 @@ void diep(char *s) {
 	exit(1);
 }
 
-//#define SRV_IP "127.0.0.1"
+void recieveRespond();
+
+bool isFinish = false;
+int state = 0; //0 == XON, 1 == XOFF
+struct sockaddr_in si_other;
+int s, i, slen=sizeof(si_other);
 
 int main(int argc, char* argv[]) {
 	if (argc != 4) {
@@ -33,8 +39,8 @@ int main(int argc, char* argv[]) {
 		char* FILE_NAME = argv[3];
 		
 		
-		struct sockaddr_in si_other;
-		int s, i, slen=sizeof(si_other);
+		
+		
 		char buf[BUFLEN];
 	 
 		if ((s=socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP))==-1)
@@ -55,46 +61,50 @@ int main(int argc, char* argv[]) {
 		int count = 1;
 		char c;
 		int recvlen;
-		char *message;
-		int state = 0; //0 == XON, 1 == XOFF
+		
+		thread t1(recieveRespond);
+
 		while (is.get(c)) {          // loop getting single characters
-			if (recvfrom(s, message, 2, MSG_DONTWAIT, (struct sockaddr *) &si_other, (socklen_t*)&slen) == 1) {
-				state = 1;
-				printf("XOFF diterima\n");
-				while (state) {
-					sleep(1);
-					printf("Menunggu XON\n");
-					if (recvfrom(s, message, 2, MSG_DONTWAIT, (struct sockaddr *) &si_other, (socklen_t*)&slen) == 1) {
-						state = 0;
-						printf("XON diterima\n");
-					}
-				}
-			}
 			
+			while(state) {
+				printf("Menunggu XON ...\n");
+				sleep(1);
+			}
+
 			sprintf(buf, "%c", c);
-			if (sendto(s, buf, BUFLEN, 0, (struct sockaddr*) &si_other, slen)==-1)
+			if (sendto(s, buf, BUFLEN, 0, (struct sockaddr*) &si_other, slen)==-1) {
 				diep((char*)"sendto()");
+			}
+
 			printf("Mengirim byte ke-%d: '%s'\n",count,buf);
 			count++;
 			sleep(1);
 			
 		}
 		printf("%d",(int)c);
+		isFinish = true;
+
+		t1.join();
 		is.close();                // close file
 		
-		
-		
-		/*
-		for (i=0; i<NPACK; i++) {
-			printf("Sending packet %d\n", i);
-			sprintf(buf, "This is packet %d\n", i);
-			if (sendto(s, buf, BUFLEN, 0, (struct sockaddr*) &si_other, slen)==-1)
-				diep((char*)"sendto()");
-
-		}
-		*/
 		close(s);
 	}
+
  	return 0;
- }
+}
+
+void recieveRespond() {
+	char *message;
+	while(!isFinish) {
+		if (recvfrom(s, message, 2, MSG_DONTWAIT, (struct sockaddr *) &si_other, (socklen_t*)&slen) == 1) {
+			if (message[0] == XON) {
+				state = 0;
+			} else if (message[0] == XOFF) {
+				state = 1;
+			}
+		}
+
+		
+	}
+}
 

@@ -98,8 +98,10 @@ void recieveRespond() {
 	while(!isFinish) {
 		if (recvfrom(s, message, 2, MSG_DONTWAIT, (struct sockaddr *) &si_other, (socklen_t*)&slen) == 1) {
 			if (message[0] == XON) {
+				printf("XON diterima.\n");
 				state = 0;
 			} else if (message[0] == XOFF) {
+				printf("XOFF diterima.\n");
 				state = 1;
 			}
 		}

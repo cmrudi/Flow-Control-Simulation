@@ -27,15 +27,12 @@ void die(char *s) {
 }
 
 struct sockaddr_in si_me, si_other;
-int s, i, slen = sizeof(si_other) , recv_len;
+int s, slen = sizeof(si_other) , recv_len;
 Byte buf[BUFLEN];
 queue<Byte> dataBuffer;
 int dataCounter = 1;
 int consumedCounter = 1;
 char xChar = XON;
-Byte sent_xonxoff = XON;
-bool send_xon = false;
-bool send_xoff = false;
 char send_xonxoff[1];
 int sourcePort;
 Byte currentData;
@@ -50,8 +47,7 @@ int main(int argc, char* args[]) {
 	}
 
 	sourcePort = atoi(args[1]);
-	printf("%d\n",sourcePort);
-
+        
 	//create a UDP socket
 	if ((s=socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP)) == -1) {
 		die((char*)"socket");

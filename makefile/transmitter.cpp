@@ -60,7 +60,6 @@ int main(int argc, char* argv[]) {
 		ifstream is(FILE_NAME);     // open file
 		int count = 1;
 		char c;
-		int recvlen;
 		
 		thread t1(recieveRespond);
 
@@ -94,7 +93,7 @@ int main(int argc, char* argv[]) {
 }
 
 void recieveRespond() {
-	char *message;
+	char message[1];
 	while(!isFinish) {
 		if (recvfrom(s, message, 2, MSG_DONTWAIT, (struct sockaddr *) &si_other, (socklen_t*)&slen) == 1) {
 			if (message[0] == XON) {

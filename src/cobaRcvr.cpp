@@ -15,7 +15,7 @@
 
 #define BUFLEN 9	//Max length of buffer
 #define MINUPPERBUF 10
-#define MAXLOWERBUF 4
+#define MAXLOWERBUF 2
 
 using namespace std;
 
@@ -110,19 +110,18 @@ void consumeByte() {
 
 	while (isBinded) {
 
-		if((map_dataBuffer.size()*3) > 0){
+		if(map_dataBuffer.size() > 0){
 			vector<Byte> temp = q_get();
 			for (int i=0;i<3;i++) {
 				if (temp[i] == Endfile) {
 					isEndFile = true;
 					exit(0);
 				} else {
-					printf("Mengkonsumsi byte ke-%d: %c\n",consumedCounter,temp[i]);
+					printf("Mengkonsumsi byte ke-%d\n",consumedCounter);
 					consumedCounter++;
 				}
-				sleep(1);
 			}
-			
+			sleep(1);
 		}
 		
 	}
@@ -162,7 +161,7 @@ void rcvchar(int sockfd) {
 					
 		}
 
-		if ((map_dataBuffer.size()*3)> MINUPPERBUF) {
+		if (map_dataBuffer.size()> MINUPPERBUF) {
 			printf("Buffer > minimum upperlimit. Mengirim XOFF.\n");
 			xChar = XOFF;
 			send_xonxoff[0] = xChar;
@@ -176,7 +175,7 @@ void rcvchar(int sockfd) {
 
 vector<Byte> q_get() {
 
-	if ((map_dataBuffer.size()*3) < MAXLOWERBUF && xChar == XOFF) {
+	if (map_dataBuffer.size() < MAXLOWERBUF && xChar == XOFF) {
 		printf("Buffer < maximum lowerlimit. Mengirim XON.\n");
 		xChar = XON;
 		send_xonxoff[0] = xChar;
@@ -233,6 +232,7 @@ void sendACK(int numFrame){
 	ACKData[1] = (unsigned char) numFrame / 256;
 	ACKData[2] = (unsigned char) numFrame % 256;
 	ACKData[3] = makeCheckSum(ACKData);
+	printf("aaa\n");
 	ssize_t sent_len = sendto(s, ACKData, sizeof(ACKData), 4, (struct sockaddr*) &si_other, slen);
 	if(sent_len < 0) {
 		perror("sendto() failed)\n");

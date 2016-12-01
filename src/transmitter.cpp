@@ -141,7 +141,6 @@ void recieveRespond() {
 	
 	while(!isFinish || (sizeWindows != 0)) {
 		if (recvfrom(s, message, 6, MSG_DONTWAIT, (struct sockaddr *) &si_other, (socklen_t*)&slen) != -1) {
-			printf("ccc\n");
 			if (message[0] == XON) {
 				printf("XON diterima.\n");
 				state = 0;

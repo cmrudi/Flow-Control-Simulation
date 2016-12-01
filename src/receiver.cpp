@@ -8,9 +8,12 @@
 #include "dcomm.h"
 #include <queue>
 #include <thread>
+#include <iostream>
+#include <vector>
+#include <algorithm>
 
-#define BUFLEN 512	//Max length of buffer
-#define MINUPPERBUF 5
+#define BUFLEN 9	//Max length of buffer
+#define MINUPPERBUF 10
 #define MAXLOWERBUF 2
 
 using namespace std;
@@ -19,7 +22,12 @@ using namespace std;
 
 void consumeByte();
 Byte q_get();
-Byte *rcvchar(int sockfd);
+void rcvchar(int sockfd);
+bool validate();
+void sendACK(int numFrame);
+void sendNAK(int numFrame);
+Byte makeCheckSum(Byte* ACKData);
+bool isRecieved(int numFrame);
 
 void die(char *s) {
 	perror(s);
@@ -29,14 +37,16 @@ void die(char *s) {
 struct sockaddr_in si_me, si_other;
 int s, slen = sizeof(si_other) , recv_len;
 Byte buf[BUFLEN];
-queue<Byte> dataBuffer;
-int dataCounter = 1;
+//queue<Byte> dataBuffer;
+priority_queue<int, vector<Byte>, std::greater<int>> pq_dataBuffer;
+vector<int> frameRecieved;
 int consumedCounter = 1;
 char xChar = XON;
 char send_xonxoff[1];
 int sourcePort;
 Byte currentData;
 bool isBinded = false;
+bool isEndFile = false;
 
 int main(int argc, char* args[]) {
 
@@ -74,8 +84,8 @@ int main(int argc, char* args[]) {
 	{
 
 		//try to receive some data, this is a blocking call
-		currentData = *(rcvchar(s));
-		if (currentData==Endfile) {
+		rcvchar(s);
+		if (isEndFile) {
 			exit(0);
 		}
 
@@ -99,6 +109,7 @@ void consumeByte() {
 			Byte temp = q_get();
 
 			if (temp == Endfile) {
+				isEndFile = true;
 				exit(0);
 			} else {
 				printf("Mengkonsumsi byte ke-%d: '%c'\n",consumedCounter,temp);
@@ -111,9 +122,9 @@ void consumeByte() {
 }
 
 
-Byte *rcvchar(int sockfd) {
+void rcvchar(int sockfd) {
 	if (xChar==XON) {
-		if ((recv_len = recvfrom(s, buf, BUFLEN, 0, (struct sockaddr *) &si_other, (socklen_t*)&slen)) == -1) {
+		if ((recv_len = recvfrom(s, buf, BUFLEN, 4, (struct sockaddr *) &si_other, (socklen_t*)&slen)) == -1) {
 			die((char*)"recvfrom()");
 		}
 
@@ -123,9 +134,21 @@ Byte *rcvchar(int sockfd) {
 		}
 
 		if (recv_len!=0) {
-			printf("Menerima byte ke-%d\n" , dataCounter);
-			dataBuffer.push(buf[0]);
-			dataCounter++;		
+			if(validate()) {
+				int numFrame = (buf[1]*256) + buf[2];
+				if(!isRecieved(numFrame)){
+					dataBuffer.push(buf[4]);
+					dataBuffer.push(buf[5]);
+					dataBuffer.push(buf[6]);
+					frameRecieved.push_back(numFrame);
+					sort(frameRecieved.begin(),frameRecieved.end());	
+				}
+				sendACK(numFrame);
+			} else {
+				int numFrame = (buf[1]*256) + buf[2];
+				sendNAK(numFrame);
+			}
+					
 		}
 
 		if (dataBuffer.size()> MINUPPERBUF) {
@@ -137,12 +160,10 @@ Byte *rcvchar(int sockfd) {
 				perror("sendto() failed)\n");
       		}	
 		}
-	} else {
-		buf[0] = 0;
 	}
 
 
-	return &buf[0];
+	
 }
 
 Byte q_get() {
@@ -161,5 +182,77 @@ Byte q_get() {
 	dataBuffer.pop();
 
 	return dataChar;
+}
+
+bool validate(){
+	int i;
+	unsigned char checksum = 0;
+	for (i=0;i<8;i++) {
+		checksum = checksum * 2;
+		if(buf[i]%2 == 1){
+			checksum = checksum + 1;
+		}
+	}
+
+	int numFrame = (buf[1]*256) + buf[2];
+	printf("Menerima frame ke-%d\n" , numFrame);
+
+
+	if(buf[8] == checksum) {
+				return true;
+	} else {
+		return false;
+	}
+}
+
+void sendACK(int numFrame){
+	Byte ACKData[4];
+	ACKData[0] = ACK;
+	ACKData[1] = (unsigned char) numFrame / 256;
+	ACKData[2] = (unsigned char) numFrame % 256;
+	ACKData[3] = makeCheckSum(ACKData);
+	printf("aaa\n");
+	ssize_t sent_len = sendto(s, ACKData, sizeof(ACKData), 4, (struct sockaddr*) &si_other, slen);
+	if(sent_len < 0) {
+		perror("sendto() failed)\n");
+  	}
+}
+
+void sendNAK(int numFrame){
+	Byte ACKData[4];
+	ACKData[0] = NAK;
+	ACKData[1] = (unsigned char) numFrame / 256;
+	ACKData[2] = (unsigned char) numFrame % 256;
+	ACKData[3] = makeCheckSum(ACKData);
+	printf("aaa\n");
+	
+	ssize_t sent_len = sendto(s, ACKData, sizeof(ACKData), 0, (struct sockaddr*) &si_other, slen);
+	if(sent_len < 0) {
+		perror("sendto() failed)\n");
+  	}
+}
+
+Byte makeCheckSum(Byte* ACKData){
+	int i;
+	unsigned char checksum = 0;
+	for (i=0;i<3;i++) {
+		checksum = checksum * 2;
+		if(ACKData[i]%2 == 1){
+			checksum = checksum + 1;
+		}
+	}
+
+	return checksum;
+}
+
+bool isRecieved(int numFrame){
+	bool found = false;
+	for (std::vector<int>::iterator it = frameRecieved.begin() ; it != frameRecieved.end(); ++it) {
+		if(numFrame == (*it))
+			found = true;
+	}
+
+	return found;
+    	
 }
 
